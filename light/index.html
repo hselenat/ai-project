@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小猫补光灯</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        #light-area {
+            flex: 1;
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+
+        #unified-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -30px);
+            width: 90%;
+            max-width: 400px;
+            height: auto;
+            min-height: 200px;
+            max-height: 600px;
+            background: rgba(0, 0, 0, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .panel-header {
+            height: 60px;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: move;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .toggle-btn {
+            width: 30px;
+            height: 30px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 5px;
+            transition: transform 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-btn::before {
+            content: '▼';
+            display: inline-block;
+            transition: transform 0.3s;
+            font-size: 14px;
+        }
+
+        .panel-collapsed .toggle-btn::before {
+            transform: rotate(-90deg);
+        }
+
+        .panel-content {
+            padding: 15px;
+            transition: all 0.3s ease-out;
+            height: auto;
+            opacity: 1;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        .panel-collapsed .panel-content {
+            height: 0;
+            opacity: 0;
+            padding: 0 15px;
+            overflow: hidden;
+        }
+
+        .color-section {
+            margin-bottom: 20px;
+        }
+
+        .controls-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 修改拖动把手样式 */
+        .drag-indicator {
+            width: 50px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 2.5px;
+            margin: 0 auto;
+        }
+
+        .slider-container {
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .slider {
+            width: 100%;
+            height: 40px;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        label {
+            display: inline-block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            margin-right: 10px;
+        }
+
+        #fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 1000;
+            font-size: 16px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #fullscreen-btn:hover {
+            background: rgba(0, 0, 0, 0.7);
+            transform: scale(1.05);
+        }
+
+        /* 添加触摸设备的优化 */
+        @media (hover: none) {
+            #controls {
+                bottom: 10px;
+                padding: 15px;
+            }
+
+            .slider::-webkit-slider-thumb {
+                width: 32px;
+                height: 32px;
+            }
+        }
+
+        #color-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 90%;
+            max-width: 400px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .color-presets {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .preset-color {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .preset-color:hover {
+            transform: scale(1.1);
+        }
+
+        .color-picker-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #custom-color {
+            width: 55px;
+            height: 55px;
+        }
+
+        #custom-color::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        #custom-color::-webkit-color-swatch {
+            border: 2px solid white;
+            border-radius: 50%;
+        }
+
+        .color-picker-label {
+            color: white;
+            font-size: 14px;
+        }
+
+        /* 添加百分比显示的样式 */
+        .value-display {
+            position: absolute;
+            right: 0;
+            top: 0;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 调整label的样式以适应百分比显示 */
+        label {
+            display: inline-block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            margin-right: 10px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        /* 拖动区域样式 */
+        .drag-handle {
+            padding: 8px;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 10px;
+        }
+
+        .drag-handle::before {
+            content: '';
+            width: 40px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 2px;
+        }
+
+        /* 添加滚动条样式 */
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* 添加标题样式 */
+        .panel-title {
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        /* 修改收起状态的样式 */
+        .panel-collapsed {
+            height: 60px !important; /* 强制高度为60px */
+            min-height: 60px !important;
+            max-height: 60px !important;
+            transform: translate(-50%, -30px) !important; /* 修改收起时的位置，只移动一半高度 */
+        }
+
+        .panel-collapsed .panel-header {
+            border-bottom: none;
+            height: 60px;
+        }
+
+        .panel-collapsed .panel-content {
+            display: none;
+            height: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* 优化过渡动画 */
+        #unified-panel {
+            transition: height 0.3s ease-out, min-height 0.3s ease-out, max-height 0.3s ease-out, transform 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <button id="fullscreen-btn">全屏</button>
+    <div id="light-area"></div>
+    
+    <div id="unified-panel">
+        <div class="panel-header" id="panel-handle">
+            <div class="drag-indicator"></div>
+            <span class="panel-title">照明控制面板</span>
+            <button class="toggle-btn" id="toggle-panel" title="展开/收起面板"></button>
+        </div>
+        <div class="panel-content">
+            <div class="color-section">
+                <div class="color-presets">
+                    <div class="preset-color" style="background: #FF7A00" data-color="#FF7A00" title="暖黄色"></div>
+                    <div class="preset-color" style="background: #FFE5B4" data-color="#FFE5B4" title="温暖白"></div>
+                    <div class="preset-color" style="background: #FFFFFF" data-color="#FFFFFF" title="正白色"></div>
+                    <div class="preset-color" style="background: #E1F5FE" data-color="#E1F5FE" title="冷白色"></div>
+                    <div class="preset-color" style="background: #B3E5FC" data-color="#B3E5FC" title="冷色调"></div>
+                </div>
+                <div class="color-picker-container">
+                    <input type="color" id="custom-color" value="#FFFFFF" title="选择自定义颜色">
+                    <span class="color-picker-label">自定义颜色</span>
+                </div>
+            </div>
+            
+            <div class="controls-section">
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label for="brightness">亮度调节</label>
+                        <span class="value-display" id="brightness-value">100%</span>
+                    </div>
+                    <input type="range" id="brightness" class="slider" min="0" max="100" value="100">
+                </div>
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label for="temperature">色温调节</label>
+                        <span class="value-display" id="temperature-value">6500K</span>
+                    </div>
+                    <input type="range" id="temperature" class="slider" min="0" max="100" value="50">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const lightArea = document.getElementById('light-area');
+        const brightnessSlider = document.getElementById('brightness');
+        const temperatureSlider = document.getElementById('temperature');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const customColor = document.getElementById('custom-color');
+        const presetColors = document.querySelectorAll('.preset-color');
+        let useCustomColor = false;
+
+        const brightnessValue = document.getElementById('brightness-value');
+        const temperatureValue = document.getElementById('temperature-value');
+
+        // 更新光源颜色的函数
+        function updateLight() {
+            const brightness = brightnessSlider.value;
+            
+            if (useCustomColor) {
+                // 使用自定义颜色
+                lightArea.style.backgroundColor = customColor.value;
+            } else {
+                // 使用色温计算的颜色
+                const temperature = temperatureSlider.value;
+                const kelvin = 6500 - (temperature / 100) * (6500 - 2700);
+                const rgb = colorTemperatureToRGB(kelvin);
+                lightArea.style.backgroundColor = `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`;
+            }
+            
+            lightArea.style.opacity = brightness / 100;
+        }
+
+        // 将色温转换为RGB值的函数
+        function colorTemperatureToRGB(kelvin) {
+            const temp = kelvin / 100;
+            let r, g, b;
+
+            if (temp <= 66) {
+                r = 255;
+                g = temp;
+                g = 99.4708025861 * Math.log(g) - 161.1195681661;
+                if (temp <= 19) {
+                    b = 0;
+                } else {
+                    b = temp - 10;
+                    b = 138.5177312231 * Math.log(b) - 305.0447927307;
+                }
+            } else {
+                r = temp - 60;
+                r = 329.698727446 * Math.pow(r, -0.1332047592);
+                g = temp - 60;
+                g = 288.1221695283 * Math.pow(g, -0.0755148492);
+                b = 255;
+            }
+
+            return {
+                r: Math.min(255, Math.max(0, Math.round(r))),
+                g: Math.min(255, Math.max(0, Math.round(g))),
+                b: Math.min(255, Math.max(0, Math.round(b)))
+            };
+        }
+
+        // 更新全屏按钮文本
+        function updateFullscreenButtonText() {
+            fullscreenBtn.textContent = document.fullscreenElement ? '退出全屏' : '全屏';
+        }
+
+        // 全屏按钮点击事件
+        fullscreenBtn.addEventListener('click', async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                } else {
+                    await document.exitFullscreen();
+                }
+            } catch (error) {
+                console.error('全屏模式切换失败:', error);
+            }
+        });
+
+        // 监听全屏状态变化
+        document.addEventListener('fullscreenchange', () => {
+            updateFullscreenButtonText();
+        });
+
+        // 监听屏幕方向变化
+        screen.orientation.addEventListener('change', () => {
+            if (document.fullscreenElement) {
+                updateLight(); // 重新调整显示果
+            }
+        });
+
+        // 预设颜色点击事件
+        presetColors.forEach(preset => {
+            preset.addEventListener('click', () => {
+                useCustomColor = true;
+                const color = preset.dataset.color;
+                customColor.value = color;
+                updateLight();
+            });
+        });
+
+        // 自定义颜色选择事件
+        customColor.addEventListener('input', () => {
+            useCustomColor = true;
+            updateLight();
+        });
+
+        // 更新显示值的函数
+        function updateDisplayValues() {
+            brightnessValue.textContent = `${brightnessSlider.value}%`;
+            // 将色温百分比转换为开尔文温度值
+            const kelvin = Math.round(6500 - (temperatureSlider.value / 100) * (6500 - 2700));
+            temperatureValue.textContent = `${kelvin}K`;
+        }
+
+        // 修改亮度滑块事件监听
+        brightnessSlider.addEventListener('input', () => {
+            updateLight();
+            updateDisplayValues();
+        });
+
+        // 修改色温滑块事件监听
+        temperatureSlider.addEventListener('input', () => {
+            useCustomColor = false;
+            updateLight();
+            updateDisplayValues();
+        });
+
+        // 添加拖拽功能
+        function makeDraggable(element, handle) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            
+            handle.addEventListener('mousedown', dragMouseDown);
+            handle.addEventListener('touchstart', dragTouchStart, { passive: false });
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.addEventListener('mousemove', elementDrag);
+                document.addEventListener('mouseup', closeDragElement);
+            }
+
+            function dragTouchStart(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                pos3 = touch.clientX;
+                pos4 = touch.clientY;
+                document.addEventListener('touchmove', elementTouchDrag, { passive: false });
+                document.addEventListener('touchend', closeTouchDragElement);
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                
+                const newTop = element.offsetTop - pos2;
+                const newLeft = element.offsetLeft - pos1;
+                
+                // 确保面板不会超出屏幕边界
+                const maxX = window.innerWidth - element.offsetWidth;
+                const maxY = window.innerHeight - element.offsetHeight;
+                
+                element.style.top = `${Math.min(Math.max(0, newTop), maxY)}px`;
+                element.style.left = `${Math.min(Math.max(0, newLeft), maxX)}px`;
+            }
+
+            function elementTouchDrag(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                pos1 = pos3 - touch.clientX;
+                pos2 = pos4 - touch.clientY;
+                pos3 = touch.clientX;
+                pos4 = touch.clientY;
+                
+                const newTop = element.offsetTop - pos2;
+                const newLeft = element.offsetLeft - pos1;
+                
+                const maxX = window.innerWidth - element.offsetWidth;
+                const maxY = window.innerHeight - element.offsetHeight;
+                
+                element.style.top = `${Math.min(Math.max(0, newTop), maxY)}px`;
+                element.style.left = `${Math.min(Math.max(0, newLeft), maxX)}px`;
+            }
+
+            function closeDragElement() {
+                document.removeEventListener('mouseup', closeDragElement);
+                document.removeEventListener('mousemove', elementDrag);
+                constrainPanel(unifiedPanel);
+            }
+
+            function closeTouchDragElement() {
+                document.removeEventListener('touchend', closeTouchDragElement);
+                document.removeEventListener('touchmove', elementTouchDrag);
+                constrainPanel(unifiedPanel);
+            }
+        }
+
+        // 添加面板展开收起功能
+        const unifiedPanel = document.getElementById('unified-panel');
+        const toggleBtn = document.getElementById('toggle-panel');
+        const panelContent = document.querySelector('.panel-content');
+
+        toggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 防止触发拖拽
+            unifiedPanel.classList.toggle('panel-collapsed');
+        });
+
+        // 修改拖拽初始化
+        const panelHandle = document.getElementById('panel-handle');
+        makeDraggable(unifiedPanel, panelHandle);
+
+        // 拖拽后保持面板在可视区域内
+        function constrainPanel(element) {
+            const rect = element.getBoundingClientRect();
+            const maxX = window.innerWidth - rect.width;
+            const maxY = window.innerHeight - rect.height;
+            
+            if (rect.left < 0) element.style.left = '0px';
+            if (rect.top < 0) element.style.top = '0px';
+            if (rect.left > maxX) element.style.left = maxX + 'px';
+            if (rect.top > maxY) element.style.top = maxY + 'px';
+        }
+
+        // 初始化
+        updateLight();
+        updateFullscreenButtonText();
+        updateDisplayValues();
+    </script>
+</body>
+</html> 
